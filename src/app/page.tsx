@@ -15,32 +15,30 @@ export default function Home() {
     setLoading(true);
     try {
       const _movies = [];
-      let total = 0; //total records retrieved
-      let _page = pagination.page; //api page
+      const ub = pagination.page * pagination.pageSize; //record number to take until
+      const lb = ub - pagination.pageSize + 1; //record number to take from
+      const from = Math.ceil(lb / API_PAGE_SIZE); //api page to start from
+      const to = Math.ceil(ub / API_PAGE_SIZE); //api page to end to
+      const skip = lb - ((from - 1) * API_PAGE_SIZE + 1); //ignore records in from page
+      const miss = to * API_PAGE_SIZE - ub; //ignore record in to page
+
       let _totalPages = 1; //total pages for given page size
-      let _maxPage = false; //flag if reached last page
 
-      while (total < pagination.pageSize && !_maxPage) {
-        const data = await fetchMovies(_page);
+      for (let ii = from; ii <= to; ii++) {
+        const data = await fetchMovies(ii);
 
-        total += data.results?.length ?? 0;
-        _totalPages = data.total_results / pagination.pageSize;
+        const sliceFrom = ii == from ? skip : 0;
+        const sliceTo = ii == to ? data.results.length - miss : data.results.length;
 
-        if (total > pagination.pageSize) {
-          const remain = data.results.length - (total - pagination.pageSize);
-          _movies.push(...data.results.slice(0, remain));
-        } else {
-          _movies.push(...data.results);
-        }
+        _movies.push(...data.results.slice(sliceFrom, sliceTo));
+        _totalPages = Math.ceil(data.total_results / pagination.pageSize);
 
         // Check if reached last page
-        if (_page >= data.total_pages) {
-          _maxPage = true;
+        if (ii + 1 > data.total_pages) {
+          ii = to + 1;
         }
-        _page++;
       }
 
-      console.log(_movies);
       setMovies(_movies);
       setPagination({ ...pagination, totalPages: Math.ceil(_totalPages) });
     } catch (e: any) {
@@ -72,7 +70,7 @@ export default function Home() {
 
   useEffect(() => {
     getMovies();
-  }, []);
+  }, [pagination.page, pagination.pageSize]);
 
   return (
     <main className="flex min-h-screen flex-col gap-5 items-center justify-between p-24 text-white bg-black">
@@ -96,7 +94,7 @@ export default function Home() {
           </div>
         ))}
       </div>
-      <Pagintaion page={pagination.page} totalPages={pagination.totalPages} />
+      <Pagintaion pagination={pagination} setPagination={setPagination} />
     </main>
   );
 }
