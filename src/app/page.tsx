@@ -2,14 +2,26 @@
 
 import Image from "next/image";
 import { headers } from "@/utils/fetchHeaders";
-import { Pagintaion } from "@/components/Pagination";
+import { IPagination, Pagintaion } from "@/components/Pagination";
 import { useEffect, useState } from "react";
-import { API_PAGE_SIZE } from "@/constants";
+import { API_PAGE_SIZE, SORT_OPTIONS } from "@/constants";
+import { Filter, IFilters } from "@/components/Filter";
+import { MoviesGrid } from "@/components/MoviesGrid";
 
 export default function Home() {
   const [movies, setMovies] = useState<any[]>([]);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, pageSize: 30 });
+  const [pagination, setPagination] = useState<IPagination>({ page: 1, totalPages: 1, pageSize: 30 });
+  const [filters, setFilters] = useState<IFilters>({ sort: { option: SORT_OPTIONS.POPULARITY, asc: false } });
   const [loading, setLoading] = useState(false);
+
+  let previousMonth = new Date().getMonth() - 1;
+  let previousYear = new Date().getFullYear();
+
+  if (previousMonth < 0) {
+    previousMonth = 11;
+    previousYear -= 1;
+  }
+  const minReleaseDate = new Date(previousYear, previousMonth, 1).toISOString().split("T")[0];
 
   const getMovies = async () => {
     setLoading(true);
@@ -50,10 +62,19 @@ export default function Home() {
 
   const fetchMovies = async (_page: number) => {
     try {
-      const data = await fetch(`${process.env.API_HOST}/discover/movie?sort_by=popularity.desc&page=${_page}`, {
-        method: "GET",
-        headers: headers,
-      }).then(
+      const data = await fetch(
+        `${
+          process.env.API_HOST
+        }/discover/movie?with_release_type=2|3&primary_release_date.gte=${minReleaseDate}&primary_release_date.lte=${
+          new Date().toISOString().split("T")[0]
+        }&page=${_page}&sort_by=${filters.sort.option}.${filters.sort.asc ? "asc" : "desc"}${
+          filters.sort.option == SORT_OPTIONS.RATINGS ? "&vote_count.gte=200" : ""
+        }`,
+        {
+          method: "GET",
+          headers: headers,
+        }
+      ).then(
         async (res) => {
           const resData = await res.json();
           return resData;
@@ -70,30 +91,15 @@ export default function Home() {
 
   useEffect(() => {
     getMovies();
-  }, [pagination.page, pagination.pageSize]);
+  }, [pagination.page, pagination.pageSize, filters]);
 
   return (
     <main className="flex min-h-screen flex-col gap-5 items-center justify-between p-24 text-white bg-black">
-      <h1 className="text-3xl">Popcorn Time</h1>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
-        {movies?.map((m: any) => (
-          <div key={m.id} className="flex flex-col gap-2">
-            <div className="relative cursor-pointer">
-              <Image
-                className="w-full"
-                src={`https://image.tmdb.org/t/p/w500${m.poster_path}`}
-                width="100"
-                height="200"
-                alt={m.original_title}
-              />
-              <div className="w-full h-full absolute top-0 left-0 bg-black opacity-0 duration-300 hover:opacity-75">
-                <div className="relative w-full h-full flex justify-center items-center">See More</div>
-              </div>
-            </div>
-            {m.title}
-          </div>
-        ))}
+      <div className="w-full flex justify-between items-center">
+        <h1 className="text-3xl">Popcorn Time</h1>
+        <Filter filters={filters} setFilters={setFilters} />
       </div>
+      {loading ? <div>Loading...</div> : <MoviesGrid movies={movies} />}
       <Pagintaion pagination={pagination} setPagination={setPagination} />
     </main>
   );
