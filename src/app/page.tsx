@@ -1,17 +1,23 @@
 "use client";
 
-import Image from "next/image";
-import { headers } from "@/utils/fetchHeaders";
-import { IPagination, Pagintaion } from "@/components/Pagination";
-import { useEffect, useState } from "react";
-import { API_PAGE_SIZE, SORT_OPTIONS } from "@/constants";
 import { Filter, IFilters } from "@/components/Filter";
 import { MoviesGrid } from "@/components/MoviesGrid";
+import { IPagination, Pagintaion } from "@/components/Pagination";
+import { ANY, API_PAGE_SIZE, SORT_OPTIONS } from "@/constants";
+import { headers } from "@/utils/fetchHeaders";
+import { Orbitron } from "next/font/google";
+import { useEffect, useState } from "react";
+
+const orbitron = Orbitron({ subsets: ["latin"] });
 
 export default function Home() {
   const [movies, setMovies] = useState<any[]>([]);
   const [pagination, setPagination] = useState<IPagination>({ page: 1, totalPages: 1, pageSize: 30 });
-  const [filters, setFilters] = useState<IFilters>({ sort: { option: SORT_OPTIONS.POPULARITY, asc: false } });
+  const [filters, setFilters] = useState<IFilters>({
+    filter: { rating: ANY },
+    sort: { option: SORT_OPTIONS.POPULARITY, asc: false },
+  });
+  const [genres, setGenres] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
   let previousMonth = new Date().getMonth() - 1;
@@ -68,7 +74,13 @@ export default function Home() {
         }/discover/movie?with_release_type=2|3&primary_release_date.gte=${minReleaseDate}&primary_release_date.lte=${
           new Date().toISOString().split("T")[0]
         }&page=${_page}&sort_by=${filters.sort.option}.${filters.sort.asc ? "asc" : "desc"}${
-          filters.sort.option == SORT_OPTIONS.RATINGS ? "&vote_count.gte=200" : ""
+          filters.sort.option == SORT_OPTIONS.RATINGS
+            ? "&vote_count.gte=200"
+            : filters.filter.genres
+            ? `&with_genres=${filters.filter.genres.join(",")}`
+            : filters.filter.rating != ANY
+            ? `&vote_average.gte=${filters.filter.rating}`
+            : ""
         }`,
         {
           method: "GET",
@@ -89,17 +101,47 @@ export default function Home() {
     }
   };
 
+  const getGenres = async () => {
+    try {
+      const data = await fetch(`${process.env.API_HOST}/genre/movie/list`, {
+        method: "GET",
+        headers: headers,
+      }).then(
+        async (res) => {
+          const resData = await res.json();
+          setGenres(resData.genres);
+        },
+        (err) => {
+          console.log(err);
+        }
+      );
+      return data;
+    } catch (e: any) {
+      console.log(e);
+    }
+  };
+
+  useEffect(() => {
+    getGenres();
+  }, []);
+
   useEffect(() => {
     getMovies();
   }, [pagination.page, pagination.pageSize, filters]);
 
   return (
-    <main className="flex min-h-screen flex-col gap-5 items-center justify-between p-24 text-white bg-black">
-      <div className="w-full flex justify-between items-center">
-        <h1 className="text-3xl">Popcorn Time</h1>
-        <Filter filters={filters} setFilters={setFilters} />
+    <main className="flex min-h-screen flex-col gap-12 items-center justify-between p-24 text-white bg-black">
+      <div className="w-full flex flex-col gap-12 items-center">
+        <div className="w-full flex justify-between items-center">
+          <h1
+            className={`${orbitron.className} text-5xl [text-shadow:_0_0_5px_#fff,0_0_10px_#fff,0_0_15px_#F6C90E,0_0_20px_#F6C90E,0_0_25px_#F6C90E,0_0_30px_#F6C90E,0_0_35px_#F6C90E] animate-neon-glow`}
+          >
+            Popcorn Time
+          </h1>
+          <Filter genres={genres} filters={filters} setFilters={setFilters} />
+        </div>
+        {loading ? <div>Loading...</div> : <MoviesGrid movies={movies} />}
       </div>
-      {loading ? <div>Loading...</div> : <MoviesGrid movies={movies} />}
       <Pagintaion pagination={pagination} setPagination={setPagination} />
     </main>
   );
