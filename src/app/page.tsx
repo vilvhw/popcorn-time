@@ -74,13 +74,9 @@ export default function Home() {
         }/discover/movie?with_release_type=2|3&primary_release_date.gte=${minReleaseDate}&primary_release_date.lte=${
           new Date().toISOString().split("T")[0]
         }&page=${_page}&sort_by=${filters.sort.option}.${filters.sort.asc ? "asc" : "desc"}${
-          filters.sort.option == SORT_OPTIONS.RATINGS
-            ? "&vote_count.gte=200"
-            : filters.filter.genres
-            ? `&with_genres=${filters.filter.genres.join(",")}`
-            : filters.filter.rating != ANY
-            ? `&vote_average.gte=${filters.filter.rating}`
-            : ""
+          filters.sort.option == SORT_OPTIONS.RATINGS ? "&vote_count.gte=200" : ""
+        }${filters.filter.genres ? `&with_genres=${filters.filter.genres.join(",")}` : ""}${
+          filters.filter.rating != ANY ? `&vote_average.gte=${filters.filter.rating}` : ""
         }`,
         {
           method: "GET",
@@ -140,9 +136,15 @@ export default function Home() {
           </h1>
           <Filter genres={genres} filters={filters} setFilters={setFilters} />
         </div>
-        {loading ? <div>Loading...</div> : <MoviesGrid movies={movies} />}
+        {loading ? (
+          <div>Loading...</div>
+        ) : movies.length <= 0 ? (
+          <div>No movies found :{"("}</div>
+        ) : (
+          <MoviesGrid movies={movies} />
+        )}
       </div>
-      <Pagintaion pagination={pagination} setPagination={setPagination} />
+      {movies.length > 0 && <Pagintaion pagination={pagination} setPagination={setPagination} />}
     </main>
   );
 }

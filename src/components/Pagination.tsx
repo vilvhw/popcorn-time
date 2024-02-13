@@ -16,7 +16,7 @@ export const Pagintaion = ({ pagination, setPagination }: IPaginationProps) => {
   const maxPages = 9;
   const [pagesArr, setPagesArr] = useState<number[]>([]);
   const chevronClass = "cursor-pointer";
-  const chevronClassDisabled = "opacity-50 cursor-default";
+  const chevronClassDisabled = "opacity-50 !cursor-default";
 
   const onPageClick = (page: number) => setPagination({ ...pagination, page });
 
@@ -28,7 +28,12 @@ export const Pagintaion = ({ pagination, setPagination }: IPaginationProps) => {
 
   useEffect(() => {
     const mid = Math.ceil(maxPages / 2);
-    const max = page + (mid - 1) <= maxPages ? maxPages : page + mid > totalPages ? totalPages : page + mid - 1;
+    const max =
+      page + (mid - 1) <= maxPages
+        ? Math.min(totalPages, maxPages)
+        : page + mid > totalPages
+        ? totalPages
+        : page + mid - 1;
     const min = page <= mid ? 1 : max == totalPages ? Math.max(1, page - mid) : page - mid + 1;
     const newArr = [];
 
@@ -52,7 +57,7 @@ export const Pagintaion = ({ pagination, setPagination }: IPaginationProps) => {
           {p}
         </div>
       ))}
-      {pagesArr[pagesArr.length] != totalPages && <div>...</div>}
+      {pagesArr.length > 0 && pagesArr[pagesArr.length - 1] != totalPages && <div>...</div>}
       <ChevronRight className={`${chevronClass} ${hasNextPage() ? "" : chevronClassDisabled}`} onClick={nextPage} />
     </div>
   );
